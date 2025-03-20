@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/user.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -7,14 +6,13 @@ class AuthProvider with ChangeNotifier {
 
   bool _isLoading = false;
   String _errorMessage = '';
-  User? _user;
-  Map<String, dynamic>? _userData;
+  Map<String, dynamic>? _user;
 
   AuthProvider(this._authService);
 
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
-  User? get user => _user;
+  Map<String, dynamic>? get user => _user;
 
   // Check if user is logged in
   Future<bool> isLoggedIn() async {
@@ -34,12 +32,12 @@ class AuthProvider with ChangeNotifier {
       if (result['success']) {
         _user = result['user'];
         _isLoading = false;
-        notifyListeners();
+        // notifyListeners();
         return true;
       } else {
         _errorMessage = result['message'];
         _isLoading = false;
-        notifyListeners();
+        // notifyListeners();
         return false;
       }
     } catch (e) {

@@ -33,9 +33,7 @@ class ApiDatabaseService {
         }),
       );
 
-      final data = jsonDecode(response.body);
-
-      print(data);
+      Map<String, dynamic> data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         User user = User(

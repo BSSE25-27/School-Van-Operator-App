@@ -43,7 +43,7 @@ class _LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(
             builder: (context) => OtpVerificationPage(
-              phoneNumber: authProvider.user?.phoneNumber ?? '+256700000000',
+              phoneNumber: authProvider.user?["phoneNumber"] ?? '+256700000000',
             ),
           ),
         );
