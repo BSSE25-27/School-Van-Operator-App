@@ -36,6 +36,7 @@ class ApiDatabaseService {
       Map<String, dynamic> data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // ignore: unused_local_variable
         User user = User(
           id: data['user']['id'],
           email: data['user']['email'],

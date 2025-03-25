@@ -66,7 +66,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
     // bool success = await authProvider.sendOTP(widget.phoneNumber);
     bool success = true;
-    if (!success && mounted) {
+    // ignore: dead_code
+    if (!success) {
       Fluttertoast.showToast(
         msg: authProvider.errorMessage,
         toastLength: Toast.LENGTH_LONG,
@@ -98,6 +99,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
       }
+      // ignore: dead_code
     } else {
       if (mounted) {
         Fluttertoast.showToast(
