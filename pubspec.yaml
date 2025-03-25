@@ -1,7 +1,7 @@
 name: btrack_app
 description: BTRACK - Bus Tracking System (Community)
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -14,8 +14,8 @@ dependencies:
   cupertino_icons: ^1.0.5
   shared_preferences: ^2.2.1
   provider: ^6.0.5
+  qr_code_scanner: ^1.0.1
   fluttertoast: ^8.2.2
-  mysql1: ^0.20.0
   crypto: ^3.0.3
   http: ^1.1.0
 
@@ -29,4 +29,3 @@ flutter:
 
   assets:
     - assets/
-

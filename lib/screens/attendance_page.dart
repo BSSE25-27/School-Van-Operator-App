@@ -1,3 +1,4 @@
+import 'package:btrack_app/screens/qr_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
@@ -126,6 +127,16 @@ class AttendancePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => QRScannerScreen()),
+                      );
+                    },
+                    child: const Text('Add Child'),
+                  ),
 
                   // Table header
                   Container(
