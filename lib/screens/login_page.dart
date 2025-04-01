@@ -214,20 +214,6 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Text('Sign in'),
                       ),
                 const SizedBox(height: 20),
-
-                // Terms and conditions
-                TextButton(
-                  onPressed: () {
-                    // Handle terms and conditions
-                  },
-                  child: const Text(
-                    'Terms & Conditions',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
