@@ -90,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Bus Tracking System',
+              'School Van Tracker',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
