@@ -23,7 +23,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: const Text("QR Code Scanner")),
       body: Column(
         children: [
           Expanded(
@@ -41,7 +41,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           ),
           Expanded(
             flex: 1,
-            child: Center(child: Text(scannedData)),
+            child: Center(
+              child: Text(
+                scannedData,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),
@@ -57,23 +64,32 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       String rawData = scanData.code ?? "No Data";
       print("🔹 Scanned Data: $rawData");
 
+      setState(() {
+        scannedData = rawData; // Show scanned text immediately
+      });
+
       try {
-        // Attempt to parse JSON
+        // Attempt to parse as JSON
         final Map<String, dynamic> jsonData = json.decode(rawData);
 
-        if (jsonData.containsKey('id') && jsonData['id'] != null) {
-          // Send data to the api to confirm child's attendance.
-          Navigator.pop(context);
-        } else {
-          Navigator.pop(context);
+        // If it's valid JSON, format the output
+        if (jsonData.containsKey('parent_name') &&
+            jsonData.containsKey('child_name') &&
+            jsonData.containsKey('child_class')) {
+          setState(() {
+            scannedData = """
+Parent Name: ${jsonData['parent_name']}
+Parent Contact: ${jsonData['parent_contact']}
+Child ID: ${jsonData['child_id']}
+Child Name: ${jsonData['child_name']}
+Child Class: ${jsonData['child_class']}
+""";
+          });
         }
       } catch (e) {
         print("Error parsing JSON: $e");
+        // If it’s not JSON, just show the raw scanned text
       }
-
-      setState(() {
-        scannedData = rawData;
-      });
     });
   }
 }
