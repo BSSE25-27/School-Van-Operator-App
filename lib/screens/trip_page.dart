@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 
@@ -16,42 +17,40 @@ class _TripPageState extends State<TripPage> {
   bool _hasReachedDestination = false;
   bool _hasTrafficAlert = false;
   
+  final Completer<GoogleMapController> _mapController = Completer();
+  static const LatLng _initialPosition = LatLng(0.3476, 32.5825); // Kampala (Example)
+
   @override
   void initState() {
     super.initState();
-    // Simulate location updates
     _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _updateLocation();
     });
   }
-  
+
   @override
   void dispose() {
     _locationTimer?.cancel();
     super.dispose();
   }
-  
+
   void _updateLocation() {
     final appProvider = Provider.of<AppProvider>(context, listen: false);
-    
-    // Simulate getting closer to destination
+
     if (_simulatedMinutesAway > 0) {
       setState(() {
         _simulatedMinutesAway -= 1;
       });
-      
-      // Update trip proximity status
+
       appProvider.updateTripProximity(true, _simulatedMinutesAway);
-      
-      // Randomly simulate traffic alert (20% chance)
+
       if (!_hasTrafficAlert && _simulatedMinutesAway > 10 && _simulatedMinutesAway < 15 && DateTime.now().second % 5 == 0) {
         setState(() {
           _hasTrafficAlert = true;
         });
         appProvider.updateTripTrafficAlert(true);
       }
-      
-      // When we reach destination
+
       if (_simulatedMinutesAway == 0 && !_hasReachedDestination) {
         setState(() {
           _hasReachedDestination = true;
@@ -64,286 +63,60 @@ class _TripPageState extends State<TripPage> {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    
+
     return Scaffold(
       body: Stack(
         children: [
-          // Map
-          Image.asset(
-            'assets/map.png',
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Icon(
-                    Icons.map,
-                    size: 100,
-                    color: Colors.grey,
-                  ),
-                ),
-              );
+          // Google Map Widget
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _initialPosition,
+              zoom: 14.0,
+            ),
+            onMapCreated: (GoogleMapController controller) {
+              _mapController.complete(controller);
+            },
+            markers: {
+              Marker(
+                markerId: const MarkerId("bus"),
+                position: _initialPosition,
+                infoWindow: const InfoWindow(title: "Bus Location"),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+              ),
             },
           ),
-          
-          // Alert banner
+
+          // Alert banners
           Positioned(
             top: 60,
             left: 16,
             right: 16,
             child: Column(
               children: [
-                // Destination reached alert
                 if (_hasReachedDestination)
-                  _buildAlertBanner(
-                    'You have reached your destination.',
-                    Colors.green,
-                  ),
-                
-                // Minutes away alert
+                  _buildAlertBanner('You have reached your destination.', Colors.green),
                 if (!_hasReachedDestination)
-                  _buildAlertBanner(
-                    'ALERT!: Bus arrives in $_simulatedMinutesAway minutes',
-                    const Color(0xFF9D7BB0),
-                  ),
-                
-                // Traffic alert
+                  _buildAlertBanner('ALERT!: Bus arrives in $_simulatedMinutesAway minutes', const Color(0xFF9D7BB0)),
                 if (_hasTrafficAlert)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.traffic,
-                            color: Colors.orange,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Your selected route looks busy, you may choose other available routes.',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildTrafficAlert(),
               ],
             ),
           ),
-          
-          // Trip info panel
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ETA
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9D7BB0).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.access_time,
-                          color: Color(0xFF9D7BB0),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ETA',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              'You are likely to arrive to the guardian at 14:30',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Trip time
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9D7BB0).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.timer,
-                          color: Color(0xFF9D7BB0),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Trip time',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              'Approximately 2 hours',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Number plate
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9D7BB0).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.directions_bus,
-                          color: Color(0xFF9D7BB0),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Number plate',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              appProvider.assignedVan?.numberPlate ?? 'UBA 234S',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // End trip button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        appProvider.endTrip();
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF9D7BB0),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('End Trip'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
+
+          // Trip Info Panel
+          _buildTripInfoPanel(appProvider),
+
           // Back button
           Positioned(
             top: 40,
             left: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
+            child: _buildBackButton(),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildAlertBanner(String message, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -366,24 +139,112 @@ class _TripPageState extends State<TripPage> {
               color: color.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.notifications,
-              color: color,
-              size: 20,
-            ),
+            child: Icon(Icons.notifications, color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
       ),
     );
   }
-}
 
+  Widget _buildTrafficAlert() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.traffic, color: Colors.orange, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Your selected route looks busy, you may choose other available routes.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTripInfoPanel(AppProvider appProvider) {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTripDetail(Icons.access_time, 'ETA', 'Arriving at 14:30'),
+            const SizedBox(height: 16),
+            _buildTripDetail(Icons.timer, 'Trip time', 'Approximately 2 hours'),
+            const SizedBox(height: 16),
+            _buildTripDetail(Icons.directions_bus, 'Number plate', appProvider.assignedVan?.numberPlate ?? 'UBA 234S'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  appProvider.endTrip();
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF9D7BB0),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('End Trip'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripDetail(IconData icon, String title, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF9D7BB0)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+      ],
+    );
+  }
+
+  Widget _buildBackButton() {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => Navigator.pop(context),
+    );
+  }
+}

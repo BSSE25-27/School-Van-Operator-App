@@ -7,6 +7,7 @@ import 'providers/auth_provider.dart';
 import 'providers/app_provider.dart';
 import 'services/mysql_database_service.dart';
 import 'services/auth_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
