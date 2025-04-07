@@ -132,7 +132,7 @@ class AttendancePage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => QRScannerScreen()),
+                            builder: (context) => const QRScannerScreen()),
                       );
                     },
                     child: const Text('Add Child'),
