@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:operator_app/otp_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -51,7 +52,8 @@ class _LoginPageState extends State<LoginPage> {
                 // Handle login logic here
                 String username = _usernameController.text;
                 String phonenumber = _phonenumberController.text;
-                print('Username: $username, Phonenumber: $phonenumber');
+                // print('Username: $username, Phonenumber: $phonenumber');
+                Navigator.push(context, MaterialPageRoute(builder: (context)=>OtpScreen()));
               },
               style:ElevatedButton.styleFrom(
                 shape: RoundedRectangleBorder(
