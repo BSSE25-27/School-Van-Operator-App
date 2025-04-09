@@ -68,8 +68,18 @@ class VanOperatorDrawer extends StatelessWidget {
                 ),
               );
             }),
-            drawerItem(Icons.help_outline, "Help"),
-            drawerItem(Icons.logout, "LogOut"),
+            drawerItem(Icons.help_outline, "Help", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HelpScreen()),
+              );
+            }),
+            drawerItem(Icons.logout, "LogOut", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LogoutScreen()),
+              );
+            }),
           ],
         ),
       ),
