@@ -44,10 +44,6 @@ class _LoginPageState extends State<LoginPage> {
               width: 120,
               height: 56,
               child: ElevatedButton(
-              child: const Text('SIGN IN',
-              style: TextStyle(
-                color:Colors.white,
-              ),),
               onPressed: () {
                 // Handle login logic here
                 String username = _usernameController.text;
@@ -61,7 +57,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 padding: EdgeInsets.symmetric(vertical: 20),
                 backgroundColor: Colors.deepPurple,
-              )
+              ),
+              child: const Text('SIGN IN',
+              style: TextStyle(
+                color:Colors.white,
+              ),)
             ),
             ),
             const SizedBox(height: 20),

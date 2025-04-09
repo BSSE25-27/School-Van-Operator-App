@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:operator_app/maps.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -34,7 +35,7 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -59,7 +60,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                "A digit code has been sent to your Phone number",
+                "A 5 digit code has been sent to your Phone number",
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],
@@ -95,7 +96,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(
-                            color: Color(0xFF3044CF),
+                            color: Colors.deepPurple,
                             width: 2,
                           ),
                         ),
@@ -142,7 +143,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       "Resend",
                       style: TextStyle(
                         fontSize: 14,
-                        color: const Color(0xFF3044CF),
+                        color: Colors.deepPurple,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -176,18 +177,18 @@ class _OtpScreenState extends State<OtpScreen> {
                                   isLoading = false;
                                 });
                                 // Navigate to next screen after verification
-                                // Navigator.pushReplacement(
-                                //   context,
-                                //   MaterialPageRoute(
-                                //     builder:
-                                //         (context) => MethodVerificationScreen(),
-                                //   ),
-                                // );
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => VanOperatorHomeScreen(),
+                                  ),
+                                );
                               });
                             }
                           },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3044CF),
+                    backgroundColor:Colors.deepPurple,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
