@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:operator_app/maps.dart';
+import 'package:operator_app/profile.dart';
+import 'package:operator_app/qr_code.dart';
+import 'package:operator_app/optimize.dart';
+import 'package:operator_app/attend.dart';
+import 'package:operator_app/terms.dart';
+import 'package:operator_app/notification.dart';
+import 'package:operator_app/help.dart';
+import 'package:operator_app/logout.dart';
 
 class VanOperatorDrawer extends StatelessWidget {
   const VanOperatorDrawer({super.key});
