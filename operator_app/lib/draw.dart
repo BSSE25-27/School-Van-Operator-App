@@ -43,7 +43,10 @@ class VanOperatorDrawer extends StatelessWidget {
             drawerItem(Icons.qr_code_scanner, "QR Code Scanner", () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const QRCodeScreen()),
+                MaterialPageRoute(
+                  builder:
+                      (context) => const ParentQRScannerScreen(childId: '1'),
+                ),
               );
             }),
             drawerItem(Icons.alt_route, "Route Optimization", () {
