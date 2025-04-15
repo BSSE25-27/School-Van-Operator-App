@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:operator_app/maps.dart';
+import 'package:operator_app/home.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -181,7 +181,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder:
-                                        (context) => VanOperatorHomeScreen(),
+                                        (context) => HomePage(),
                                   ),
                                 );
                               });

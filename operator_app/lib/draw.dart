@@ -8,6 +8,7 @@ import 'package:operator_app/terms.dart';
 import 'package:operator_app/notification.dart';
 import 'package:operator_app/help.dart';
 import 'package:operator_app/logout.dart';
+import 'package:operator_app/home.dart';
 
 class VanOperatorDrawer extends StatelessWidget {
   const VanOperatorDrawer({super.key});
@@ -30,6 +31,12 @@ class VanOperatorDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            }),
+            drawerItem(Icons.home, "Home", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HomePage()),
               );
             }),
             drawerItem(Icons.car_rental, "Navigation", () {

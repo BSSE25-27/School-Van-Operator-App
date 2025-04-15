@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:operator_app/draw.dart'; // Make sure this import is correct
+import 'package:operator_app/draw.dart';
+import 'package:operator_app/qr_code.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -24,7 +25,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         title: const Text("Attendance"),
         backgroundColor: Colors.deepPurple[100],
       ),
-      drawer: const VanOperatorDrawer(), // ✅ Use your familiar sidebar
+      drawer: const VanOperatorDrawer(),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -60,15 +61,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      "Scan Check Summary",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.deepPurple,
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ParentQRScannerScreen(childId: '1'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text("Scan QR Code"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),  // Removed const here
                     Table(
                       border: TableBorder.all(color: Colors.grey),
                       columnWidths: const {
@@ -77,10 +93,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         2: FlexColumnWidth(),
                       },
                       children: [
-                        const TableRow(
-                          decoration: BoxDecoration(color: Colors.grey),
+                        TableRow(
+                          decoration: const BoxDecoration(color: Colors.grey),
                           children: [
-                            TableCell(
+                            const TableCell(
                               child: Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(8.0),
@@ -91,7 +107,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 ),
                               ),
                             ),
-                            TableCell(
+                            const TableCell(
                               child: Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(8.0),
@@ -102,7 +118,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 ),
                               ),
                             ),
-                            TableCell(
+                            const TableCell(
                               child: Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(8.0),
