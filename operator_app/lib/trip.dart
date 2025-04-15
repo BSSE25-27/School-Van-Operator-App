@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:operator_app/maps.dart'; // Add this import
 
 class TripPage extends StatefulWidget {
   const TripPage({Key? key}) : super(key: key);
@@ -213,7 +214,9 @@ class _TripPageState extends State<TripPage> {
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,14 +226,21 @@ class _TripPageState extends State<TripPage> {
             const SizedBox(height: 16),
             _buildTripDetail(Icons.timer, 'Trip time', 'Approximately 2 hours'),
             const SizedBox(height: 16),
-            _buildTripDetail(Icons.directions_bus, 'Number plate', appProvider.assignedVan?.numberPlate ?? 'UBA 234S'),
+            _buildTripDetail(Icons.directions_bus, 'Number plate', 
+              appProvider.assignedVan?.numberPlate ?? 'UBA 234S'),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
                   appProvider.endTrip();
-                  Navigator.pop(context);
+                  // Navigate to maps screen instead of going back
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const VanOperatorHomeScreen(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF9D7BB0),
@@ -250,7 +260,9 @@ class _TripPageState extends State<TripPage> {
       children: [
         Icon(icon, color: const Color(0xFF9D7BB0)),
         const SizedBox(width: 12),
-        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ),
       ],
     );
   }
