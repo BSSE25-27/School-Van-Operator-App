@@ -101,8 +101,7 @@ class VanOperatorDrawer extends StatelessWidget {
                   _buildDrawerItem(
                     icon: Icons.alt_route,
                     title: "Route Optimization",
-                    onTap:
-                        () => _navigateTo(context, const OptimizationScreen()),
+                    onTap: () => _navigateTo(context, const RoutesPage()),
                   ),
                   _buildDrawerItem(
                     icon: Icons.receipt_long,
