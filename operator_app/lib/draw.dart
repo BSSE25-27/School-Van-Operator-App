@@ -53,7 +53,7 @@ class VanOperatorDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const OptimizationScreen(),
+                  builder: (context) => const RoutesPage(),
                 ),
               );
             }),
@@ -104,4 +104,8 @@ class VanOperatorDrawer extends StatelessWidget {
       onTap: onTap,
     );
   }
+}
+
+class OptimizationScreen {
+  const OptimizationScreen();
 }
