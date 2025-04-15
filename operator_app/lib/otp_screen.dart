@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:operator_app/maps.dart';
+import 'package:operator_app/home.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -68,9 +69,7 @@ class _OtpScreenState extends State<OtpScreen> {
         setState(() => isLoading = false);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const VanOperatorHomeScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const HomePage()),
         );
       }
     });
