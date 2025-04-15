@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:operator_app/otp_screen.dart';
+import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,6 +15,64 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _phonenumberController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  String? _errorMessage;
+
+  Future<void> _loginOperator() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'https://lightyellow-owl-629132.hostingersite.com/api/operator-login',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'VanOperatorName': _usernameController.text.trim(),
+          'PhoneNumber': _phonenumberController.text.trim(),
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (responseData['message'] == 'Login successful' &&
+            responseData['operator'] != null) {
+          // Successful login - navigate to OTP screen with operator's phone number
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => OtpScreen(
+                    phoneNumber: responseData['operator']['PhoneNumber'],
+                  ),
+            ),
+          );
+        } else {
+          setState(() {
+            _errorMessage = responseData['message'] ?? 'Invalid credentials';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage =
+              responseData['message'] ?? 'Login failed. Please try again.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Network error. Please check your connection.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,11 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
-                  child: Image.asset(
-                    "assets/icons/van.png",
-                    height: 100,
-                    // color: Colors.white,
-                  ),
+                  child: Image.asset("assets/icons/van.png", height: 100),
                 ),
                 const SizedBox(height: 40),
                 // Title
@@ -74,6 +130,21 @@ class _LoginPageState extends State<LoginPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
+
+                // Error message display
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                 // Username Field
                 TextFormField(
                   controller: _usernameController,
@@ -99,6 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
                 // Phone Number Field
                 TextFormField(
                   controller: _phonenumberController,
@@ -128,6 +200,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
                 // Forgot password (optional)
                 Align(
                   alignment: Alignment.centerRight,
@@ -142,28 +215,12 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
                 // Sign In Button
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed:
-                        _isLoading
-                            ? null
-                            : () {
-                              if (_formKey.currentState!.validate()) {
-                                setState(() => _isLoading = true);
-                                // Simulate API call
-                                Future.delayed(const Duration(seconds: 1), () {
-                                  setState(() => _isLoading = false);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const OtpScreen(),
-                                    ),
-                                  );
-                                });
-                              }
-                            },
+                    onPressed: _isLoading ? null : _loginOperator,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -193,6 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
+
                 // Terms and Conditions
                 Center(
                   child: GestureDetector(
