@@ -4,9 +4,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ParentQRScannerScreen extends StatefulWidget {
-  final String childId; // The child we're trying to verify access for
+  final String childId; // The child being picked up
+  final String vanOperatorId; // Current logged-in operator
 
-  const ParentQRScannerScreen({super.key, required this.childId});
+  const ParentQRScannerScreen({
+    super.key,
+    required this.childId,
+    required this.vanOperatorId,
+  });
 
   @override
   State<ParentQRScannerScreen> createState() => _ParentQRScannerScreenState();
@@ -16,7 +21,8 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
   final MobileScannerController cameraController = MobileScannerController();
   bool isFlashOn = false;
   bool isProcessing = false;
-  bool isScanComplete = false;
+  String? verificationStatus;
+  Map<String, dynamic>? verificationResult;
 
   @override
   void dispose() {
@@ -25,7 +31,7 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
   }
 
   void _handleBarcode(BarcodeCapture barcodeCapture) async {
-    if (isProcessing || isScanComplete) return;
+    if (isProcessing) return;
 
     final barcode = barcodeCapture.barcodes.first;
     if (barcode.rawValue == null) {
@@ -33,28 +39,48 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
       return;
     }
 
-    setState(() => isProcessing = true);
+    setState(() {
+      isProcessing = true;
+      verificationStatus = 'Verifying parent...';
+    });
 
     try {
-      // Parse the parent QR data (expected format: "parentId:12345;name:John Doe")
-      final parentData = _parseQRData(barcode.rawValue!);
+      // Parse the JSON data from QR code
+      final qrData = jsonDecode(barcode.rawValue!);
+      final parentId = qrData['parent_id']?.toString();
 
-      // Validate with backend
-      final isValid = await _validateParentChildRelationship(
-        parentId: parentData['parentId']!,
+      if (parentId == null) {
+        throw const FormatException('Invalid QR format - missing parent_id');
+      }
+
+      // Call verification API
+      final result = await _verifyPickup(
+        parentId: parentId,
         childId: widget.childId,
+        vanOperatorId: widget.vanOperatorId,
       );
 
       if (!mounted) return;
 
-      if (isValid) {
-        Navigator.pop(context, {
-          'status': 'verified',
-          'parentData': parentData,
-          'childId': widget.childId,
+      if (result['success'] == true) {
+        setState(() {
+          verificationStatus = 'Verification successful';
+          verificationResult = {
+            'parent_name': qrData['parent_name'],
+            'child_name': result['child_name'],
+          };
         });
+
+        // Show success dialog
+        _showVerificationDialog(
+          context,
+          true,
+          qrData['parent_name'],
+          result['child_name'],
+          // Add childClass argument
+        );
       } else {
-        _showError('This parent is not authorized for this child');
+        _showError(result['message'] ?? 'Verification failed');
         _resetScanner();
       }
     } catch (e) {
@@ -63,57 +89,130 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     }
   }
 
-  Future<bool> _validateParentChildRelationship({
+  Future<Map<String, dynamic>> _verifyPickup({
     required String parentId,
     required String childId,
+    required String vanOperatorId,
   }) async {
-    // Replace with your actual API endpoint
-    const apiUrl = 'https://your-api.com/validate-parent-child';
+    const apiUrl =
+        'https://lightyellow-owl-629132.hostingersite.com/api/verify-pickup';
 
     final response = await http.post(
       Uri.parse(apiUrl),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'parent_id': parentId, 'child_id': childId}),
+      body: jsonEncode({
+        'parent_id': parentId,
+        'child_id': childId,
+        'van_operator_id': vanOperatorId,
+        'verification_time': DateTime.now().toIso8601String(),
+      }),
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['isValid'] ?? false;
+      return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to validate: ${response.statusCode}');
+      throw Exception('API request failed with status ${response.statusCode}');
     }
   }
 
-  Map<String, String> _parseQRData(String data) {
-    final parts = data.split(';');
-    final result = <String, String>{};
+  void _showVerificationDialog(
+    BuildContext context,
+    bool isSuccess,
+    String parentName,
+    String childName,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              isSuccess ? 'Verification Successful' : 'Verification Failed',
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isSuccess) ...{
+                  Text(
+                    'Parent: $parentName',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('You may now release the child to the parent.'),
+                } else
+                  const Text(
+                    'The QR code is invalid or the parent is not authorized to pick up this child.',
+                  ),
+                const SizedBox(height: 16),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _resetScanner();
+                },
+                child: const Text('OK'),
+              ),
+              if (isSuccess)
+                ElevatedButton(
+                  onPressed: () {
+                    // Log the successful handover
+                    _logHandover(
+                      parentId: verificationResult!['parent_id'],
+                      childId: widget.childId,
+                      vanOperatorId: widget.vanOperatorId,
+                    );
+                    Navigator.pop(context);
+                    Navigator.pop(context, verificationResult);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text(
+                    'Confirm Handover',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+            ],
+          ),
+    );
+  }
 
-    for (final part in parts) {
-      final keyValue = part.split(':');
-      if (keyValue.length == 2) {
-        result[keyValue[0]] = keyValue[1];
-      }
-    }
+  Future<void> _logHandover({
+    required String parentId,
+    required String childId,
+    required String vanOperatorId,
+  }) async {
+    const apiUrl =
+        'https://lightyellow-owl-629132.hostingersite.com/api/log-handover';
 
-    if (!result.containsKey('parentId')) {
-      throw const FormatException('QR code missing parent ID');
-    }
-
-    return result;
+    await http.post(
+      Uri.parse(apiUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'parent_id': parentId,
+        'child_id': childId,
+        'van_operator_id': vanOperatorId,
+        'handover_time': DateTime.now().toIso8601String(),
+      }),
+    );
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   void _resetScanner() {
     if (!mounted) return;
     setState(() {
       isProcessing = false;
-      isScanComplete = false;
+      verificationStatus = null;
+      verificationResult = null;
     });
     cameraController.start();
   }
@@ -140,21 +239,32 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
           // Scanner overlay
           _buildScannerOverlay(),
 
+          // Status display
+          if (verificationStatus != null)
+            Positioned(
+              bottom: 50,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  verificationStatus!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ),
+
           // Processing indicator
-          if (isProcessing)
+          if (isProcessing && verificationStatus == null)
             const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Validating parent credentials...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Colors.white),
               ),
             ),
         ],
@@ -253,5 +363,3 @@ class _ScannerOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-// (Keep the same _ScannerOverlayPainter implementation from previous example)

@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:operator_app/otp_screen.dart';
 import 'dart:convert';
 
+Map<String, dynamic>? loggedInOperator;
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -42,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         if (responseData['message'] == 'Login successful' &&
             responseData['operator'] != null) {
+          loggedInOperator = responseData['operator'];
           // Successful login - navigate to OTP screen with operator's phone number
           Navigator.push(
             context,

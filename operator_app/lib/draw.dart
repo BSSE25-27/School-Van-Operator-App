@@ -8,12 +8,16 @@ import 'package:operator_app/terms.dart';
 import 'package:operator_app/notification.dart';
 import 'package:operator_app/help.dart';
 import 'package:operator_app/logout.dart';
+import 'package:operator_app/login.dart'; // Import for loggedInOperator
 
 class VanOperatorDrawer extends StatelessWidget {
   const VanOperatorDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Use the globally stored operator data
+    final operatorData = loggedInOperator;
+
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.78,
       elevation: 10,
@@ -55,8 +59,8 @@ class VanOperatorDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Mumbere Joshua",
-                        style: TextStyle(
+                        operatorData?['VanOperatorName'] ?? 'Unknown Operator',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -64,7 +68,7 @@ class VanOperatorDrawer extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "762729599",
+                        operatorData?['PhoneNumber'] ?? 'Unknown Phone',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: 14,
@@ -95,7 +99,10 @@ class VanOperatorDrawer extends StatelessWidget {
                     onTap:
                         () => _navigateTo(
                           context,
-                          const ParentQRScannerScreen(childId: '1'),
+                          const ParentQRScannerScreen(
+                            childId: '1',
+                            vanOperatorId: '12345',
+                          ),
                         ),
                   ),
                   _buildDrawerItem(
