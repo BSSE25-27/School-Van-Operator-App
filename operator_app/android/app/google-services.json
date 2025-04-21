@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "512075256827",
+    "project_id": "school-van-track",
+    "storage_bucket": "school-van-track.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512075256827:android:5b663ab906af1fd258f15e",
+        "android_client_info": {
+          "package_name": "com.example.operator_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOpnEYqhiIlbSUoi-5yBbqzbeaX5JNO-k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512075256827:android:0943eb3d5397ca6d58f15e",
+        "android_client_info": {
+          "package_name": "com.example.school_van_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOpnEYqhiIlbSUoi-5yBbqzbeaX5JNO-k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
