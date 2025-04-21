@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:operator_app/otp_screen.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic>? loggedInOperator;
 
@@ -45,7 +46,15 @@ class _LoginPageState extends State<LoginPage> {
         if (responseData['message'] == 'Login successful' &&
             responseData['operator'] != null) {
           loggedInOperator = responseData['operator'];
-          // Successful login - navigate to OTP screen with operator's phone number
+
+          // Save VanOperatorID to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(
+            'VanOperatorID',
+            responseData['operator']['VanOperatorID'],
+          );
+
+          // Navigate to OTP screen with operator's phone number
           Navigator.push(
             context,
             MaterialPageRoute(

@@ -6,12 +6,13 @@ class WelcomeScreen extends StatefulWidget {
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
+
 class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.purple[100],
-      appBar:AppBar(
+      appBar: AppBar(
         // backgroundColor: Colors.purple,
         title: const Text("Welcome"),
         centerTitle: true,
@@ -24,14 +25,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
         ],
       ),
-      drawer:Drawer(
-        child:ListView(
+      drawer: Drawer(
+        child: ListView(
           padding: EdgeInsets.zero,
           children: [
-             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.purple[100],
-              ),
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.purple[100]),
               child: Text('Drawer Header'),
             ),
             ListTile(
@@ -47,7 +46,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               },
             ),
           ],
-        )
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -56,21 +55,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 100),
-              Image(image: 
-              AssetImage("assets/icons/van.png")),
+              Image(image: AssetImage("assets/icons/van.png")),
               const SizedBox(height: 20),
-              Text("Welcome to the Operator App",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                height: 1.2,
-              ),),
+              Text(
+                "Welcome to the Operator App",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
+              ),
               const SizedBox(height: 12),
-              Text("Please login to continue",
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.2,
-              ),),
+              Text(
+                "Please login to continue",
+                style: TextStyle(fontSize: 16, height: 1.2),
+              ),
             ],
           ),
         ),
