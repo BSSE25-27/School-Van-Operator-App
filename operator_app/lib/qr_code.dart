@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:operator_app/login.dart'; // Import for loggedInOperator
 
 class ParentQRScannerScreen extends StatefulWidget {
   final String childId; // The child being picked up
-  final String vanOperatorId; // Current logged-in operator
 
-  const ParentQRScannerScreen({
-    super.key,
-    required this.childId,
-    required this.vanOperatorId,
-  });
+  const ParentQRScannerScreen({super.key, required this.childId});
 
   @override
   State<ParentQRScannerScreen> createState() => _ParentQRScannerScreenState();
@@ -48,16 +44,25 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
       // Parse the JSON data from QR code
       final qrData = jsonDecode(barcode.rawValue!);
       final parentId = qrData['parent_id']?.toString();
+      final childId = qrData['child_id']?.toString();
 
-      if (parentId == null) {
-        throw const FormatException('Invalid QR format - missing parent_id');
+      if (parentId == null || childId == null) {
+        throw const FormatException(
+          'Invalid QR format - missing parent_id or child_id',
+        );
+      }
+
+      // Get the VanOperatorID from the logged-in operator
+      final vanOperatorId = loggedInOperator?['VanOperatorID']?.toString();
+      if (vanOperatorId == null) {
+        throw Exception('VanOperatorID is not available. Please log in again.');
       }
 
       // Call verification API
       final result = await _verifyPickup(
         parentId: parentId,
-        childId: widget.childId,
-        vanOperatorId: widget.vanOperatorId,
+        childId: childId,
+        vanOperatorId: vanOperatorId,
       );
 
       if (!mounted) return;
@@ -77,7 +82,6 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
           true,
           qrData['parent_name'],
           result['child_name'],
-          // Add childClass argument
         );
       } else {
         _showError(result['message'] ?? 'Verification failed');
@@ -101,9 +105,9 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
       Uri.parse(apiUrl),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'parent_id': parentId,
-        'child_id': childId,
-        'van_operator_id': vanOperatorId,
+        'parent_id': parentId, // Match Laravel's validation key
+        'child_id': childId, // Match Laravel's validation key
+        'van_operator_id': vanOperatorId, // Match Laravel's validation key
         'verification_time': DateTime.now().toIso8601String(),
       }),
     );
@@ -139,6 +143,8 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
+                  Text('Child: $childName'),
+                  const SizedBox(height: 16),
                   const Text('You may now release the child to the parent.'),
                 } else
                   const Text(
@@ -162,7 +168,8 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
                     _logHandover(
                       parentId: verificationResult!['parent_id'],
                       childId: widget.childId,
-                      vanOperatorId: widget.vanOperatorId,
+                      vanOperatorId:
+                          loggedInOperator!['VanOperatorID'].toString(),
                     );
                     Navigator.pop(context);
                     Navigator.pop(context, verificationResult);

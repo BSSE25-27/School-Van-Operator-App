@@ -99,10 +99,7 @@ class VanOperatorDrawer extends StatelessWidget {
                     onTap:
                         () => _navigateTo(
                           context,
-                          const ParentQRScannerScreen(
-                            childId: '1',
-                            vanOperatorId: '12345',
-                          ),
+                          const ParentQRScannerScreen(childId: '1'),
                         ),
                   ),
                   _buildDrawerItem(

@@ -69,10 +69,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             context,
                             MaterialPageRoute(
                               builder:
-                                  (context) => const ParentQRScannerScreen(
-                                    childId: '1',
-                                    vanOperatorId: '123',
-                                  ),
+                                  (context) =>
+                                      const ParentQRScannerScreen(childId: '1'),
                             ),
                           );
                         },
