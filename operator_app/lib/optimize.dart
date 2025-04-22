@@ -3,7 +3,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RoutesPage extends StatefulWidget {
@@ -14,14 +13,12 @@ class RoutesPage extends StatefulWidget {
 }
 
 class _RoutesPageState extends State<RoutesPage> {
-  final TextEditingController _startController = TextEditingController();
-  final TextEditingController _endController = TextEditingController();
   bool _isLoading = true;
-  List<RouteModel> _routes = [];
   Position? _currentPosition;
   GoogleMapController? _mapController;
   Set<Polyline> _polylines = {};
-  List<LatLng> _childrenLocations = [];
+  List<Marker> _markers = [];
+  List<dynamic> _children = [];
 
   @override
   void initState() {
@@ -31,10 +28,28 @@ class _RoutesPageState extends State<RoutesPage> {
 
   Future<void> _getCurrentLocation() async {
     try {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Request location permission
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
         setState(() {
           _isLoading = false;
         });
@@ -48,8 +63,10 @@ class _RoutesPageState extends State<RoutesPage> {
 
       setState(() {
         _currentPosition = position;
-        _startController.text = '${position.latitude}, ${position.longitude}';
       });
+
+      // Add marker for current location
+      _addCurrentLocationMarker();
 
       // Fetch assigned children and generate routes
       await _fetchAssignedChildren();
@@ -59,6 +76,24 @@ class _RoutesPageState extends State<RoutesPage> {
       });
       print('Error getting location: $e');
     }
+  }
+
+  void _addCurrentLocationMarker() {
+    if (_currentPosition == null) return;
+
+    setState(() {
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('current_location'),
+          position: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          infoWindow: const InfoWindow(title: 'Your Location'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ),
+      );
+    });
   }
 
   Future<void> _fetchAssignedChildren() async {
@@ -80,19 +115,12 @@ class _RoutesPageState extends State<RoutesPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final children = data['children'] as List;
-
         setState(() {
-          _childrenLocations =
-              children
-                  .map(
-                    (child) => LatLng(
-                      double.parse(child['Latitude']),
-                      double.parse(child['Longitude']),
-                    ),
-                  )
-                  .toList();
+          _children = data['children'] as List;
         });
+
+        // Add markers for children locations
+        _addChildrenMarkers();
 
         // Generate routes
         await _generateRoutes();
@@ -101,64 +129,101 @@ class _RoutesPageState extends State<RoutesPage> {
       }
     } catch (e) {
       print('Error fetching children: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _addChildrenMarkers() {
+    for (var child in _children) {
+      try {
+        final lat = double.parse(child['Latitude']);
+        final lng = double.parse(child['Longitude']);
+
+        setState(() {
+          _markers.add(
+            Marker(
+              markerId: MarkerId(child['ChildName']),
+              position: LatLng(lat, lng),
+              infoWindow: InfoWindow(title: child['ChildName']),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueRed,
+              ),
+            ),
+          );
+        });
+      } catch (e) {
+        print('Error parsing child location: $e');
+      }
     }
   }
 
   Future<void> _generateRoutes() async {
-    if (_currentPosition == null || _childrenLocations.isEmpty) return;
+    if (_currentPosition == null || _children.isEmpty) return;
 
-    for (LatLng childLocation in _childrenLocations) {
-      final route = await _getRoute(
-        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        childLocation,
-      );
+    // Clear existing polylines
+    setState(() {
+      _polylines.clear();
+    });
 
-      if (route != null) {
-        setState(() {
-          _polylines.add(route);
-        });
+    for (var child in _children) {
+      try {
+        final endLat = double.parse(child['Latitude']);
+        final endLng = double.parse(child['Longitude']);
+
+        final route = await _getRoute(
+          LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          LatLng(endLat, endLng),
+          child['ChildName'],
+        );
+
+        if (route != null) {
+          setState(() {
+            _polylines.add(route);
+          });
+        }
+      } catch (e) {
+        print('Error generating route for child: $e');
       }
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    // Zoom to fit all markers and routes
+    _zoomToFit();
   }
 
-  Future<Polyline?> _getRoute(LatLng start, LatLng end) async {
+  Future<Polyline?> _getRoute(
+    LatLng start,
+    LatLng end,
+    String childName,
+  ) async {
     try {
-      // Use the same API key as in the AndroidManifest.xml
       const apiKey = 'AIzaSyBWjxOJ5thrN07ci1XkZ0fZHi4mg-PIpeg';
       final url =
           'https://maps.googleapis.com/maps/api/directions/json?origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&key=$apiKey';
-
-      print('Requesting route: $url'); // Log the request URL
 
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('Response: $data'); // Log the response
 
         if (data['routes'] != null && data['routes'].isNotEmpty) {
           final points = data['routes'][0]['overview_polyline']['points'];
 
           return Polyline(
-            polylineId: PolylineId(end.toString()),
+            polylineId: PolylineId('route_to_$childName'),
             points: _decodePolyline(points),
             color: Colors.blue,
             width: 5,
+            geodesic: true,
+            zIndex: 1,
           );
-        } else {
-          print('No routes found in the response.');
         }
-      } else {
-        print('Failed to fetch route: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching route: $e');
     }
-
     return null;
   }
 
@@ -193,101 +258,82 @@ class _RoutesPageState extends State<RoutesPage> {
     return points;
   }
 
+  Future<void> _zoomToFit() async {
+    if (_mapController == null || _markers.isEmpty) return;
+
+    LatLngBounds bounds = _boundsFromLatLngList(
+      _markers.map((m) => m.position).toList(),
+    );
+
+    CameraUpdate cameraUpdate = CameraUpdate.newLatLngBounds(bounds, 100);
+    _mapController?.animateCamera(cameraUpdate);
+  }
+
+  LatLngBounds _boundsFromLatLngList(List<LatLng> list) {
+    double? x0, x1, y0, y1;
+    for (LatLng latLng in list) {
+      if (x0 == null) {
+        x0 = x1 = latLng.latitude;
+        y0 = y1 = latLng.longitude;
+      } else {
+        if (latLng.latitude > x1!) x1 = latLng.latitude;
+        if (latLng.latitude < x0) x0 = latLng.latitude;
+        if (latLng.longitude > y1!) y1 = latLng.longitude;
+        if (latLng.longitude < y0!) y0 = latLng.longitude;
+      }
+    }
+    return LatLngBounds(
+      northeast: LatLng(x1!, y1!),
+      southwest: LatLng(x0!, y0!),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Route Optimization'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('School Bus Routes'), centerTitle: true),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition:
-                        _currentPosition != null
-                            ? CameraPosition(
-                              target: LatLng(
-                                _currentPosition!.latitude,
-                                _currentPosition!.longitude,
-                              ),
-                              zoom: 14,
-                            )
-                            : const CameraPosition(
-                              target: LatLng(
-                                0.0,
-                                0.0,
-                              ), // Default position if location is not available
-                              zoom: 2,
-                            ),
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                    },
-                    polylines: _polylines,
-                    markers:
-                        _childrenLocations
-                            .map(
-                              (location) => Marker(
-                                markerId: MarkerId(location.toString()),
-                                position: location,
-                              ),
-                            )
-                            .toSet(),
-                  ),
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    right: 16,
-                    child: _buildSearchInputs(),
-                  ),
-                ],
+              : GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target:
+                      _currentPosition != null
+                          ? LatLng(
+                            _currentPosition!.latitude,
+                            _currentPosition!.longitude,
+                          )
+                          : const LatLng(0.0, 0.0),
+                  zoom: 14,
+                ),
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  // Zoom to fit all markers after map is created
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _zoomToFit(),
+                  );
+                },
+                polylines: _polylines,
+                markers: Set<Marker>.of(_markers),
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
               ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _refreshRoutes,
+        child: const Icon(Icons.refresh),
+        tooltip: 'Refresh Routes',
+      ),
     );
   }
 
-  Widget _buildSearchInputs() {
-    return Column(
-      children: [
-        TextField(
-          controller: _startController,
-          decoration: InputDecoration(
-            hintText: 'From',
-            prefixIcon: const Icon(Icons.location_on),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _endController,
-          decoration: InputDecoration(
-            hintText: 'To',
-            prefixIcon: const Icon(Icons.location_on_outlined),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        ),
-      ],
-    );
+  Future<void> _refreshRoutes() async {
+    setState(() {
+      _isLoading = true;
+      _polylines.clear();
+      _markers.clear();
+    });
+
+    await _getCurrentLocation();
+    await _fetchAssignedChildren();
   }
-}
-
-class RouteModel {
-  final String id;
-  final String name;
-  final String startLocation;
-  final String endLocation;
-  final int estimatedTimeMinutes;
-  final double distanceKm;
-  final String? comingFrom;
-
-  RouteModel({
-    required this.id,
-    required this.name,
-    required this.startLocation,
-    required this.endLocation,
-    required this.estimatedTimeMinutes,
-    required this.distanceKm,
-    this.comingFrom,
-  });
 }
