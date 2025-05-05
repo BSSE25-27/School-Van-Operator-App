@@ -89,7 +89,7 @@ class _RoutesPageState extends State<RoutesPage> {
             _currentPosition!.latitude,
             _currentPosition!.longitude,
           ),
-          infoWindow: const InfoWindow(title: 'Your Location'),
+          infoWindow: const InfoWindow(title: 'Van Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
