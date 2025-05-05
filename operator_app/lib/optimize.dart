@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RoutesPage extends StatefulWidget {
-  const RoutesPage({Key? key}) : super(key: key);
+  const RoutesPage({super.key});
 
   @override
   State<RoutesPage> createState() => _RoutesPageState();
@@ -16,8 +16,8 @@ class _RoutesPageState extends State<RoutesPage> {
   bool _isLoading = true;
   Position? _currentPosition;
   GoogleMapController? _mapController;
-  Set<Polyline> _polylines = {};
-  List<Marker> _markers = [];
+  final Set<Polyline> _polylines = {};
+  final List<Marker> _markers = [];
   List<dynamic> _children = [];
 
   @override
@@ -320,8 +320,8 @@ class _RoutesPageState extends State<RoutesPage> {
               ),
       floatingActionButton: FloatingActionButton(
         onPressed: _refreshRoutes,
-        child: const Icon(Icons.refresh),
         tooltip: 'Refresh Routes',
+        child: const Icon(Icons.refresh),
       ),
     );
   }

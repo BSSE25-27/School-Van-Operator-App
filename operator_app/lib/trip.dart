@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripPage extends StatefulWidget {
-  const TripPage({Key? key}) : super(key: key);
+  const TripPage({super.key});
 
   @override
   State<TripPage> createState() => _TripPageState();
@@ -98,7 +98,9 @@ class _TripPageState extends State<TripPage> {
                 markerId: const MarkerId("bus"),
                 position: _initialPosition,
                 infoWindow: const InfoWindow(title: "Bus Location"),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
               ),
             },
           ),
@@ -110,22 +112,23 @@ class _TripPageState extends State<TripPage> {
             child: Column(
               children: [
                 if (_hasReachedDestination)
-                  _buildAlertBanner('You have reached your destination.', Colors.green),
+                  _buildAlertBanner(
+                    'You have reached your destination.',
+                    Colors.green,
+                  ),
                 if (!_hasReachedDestination)
-                  _buildAlertBanner('ALERT!: Bus arrives in $_simulatedMinutesAway minutes', const Color(0xFF9D7BB0)),
-                if (_hasTrafficAlert)
-                  _buildTrafficAlert(),
+                  _buildAlertBanner(
+                    'ALERT!: Bus arrives in $_simulatedMinutesAway minutes',
+                    const Color(0xFF9D7BB0),
+                  ),
+                if (_hasTrafficAlert) _buildTrafficAlert(),
               ],
             ),
           ),
 
           _buildTripInfoPanel(),
 
-          Positioned(
-            top: 40,
-            left: 16,
-            child: _buildBackButton(),
-          ),
+          Positioned(top: 40, left: 16, child: _buildBackButton()),
         ],
       ),
     );
@@ -213,7 +216,10 @@ class _TripPageState extends State<TripPage> {
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +229,11 @@ class _TripPageState extends State<TripPage> {
             const SizedBox(height: 16),
             _buildTripDetail(Icons.timer, 'Trip time', 'Approximately 2 hours'),
             const SizedBox(height: 16),
-            _buildTripDetail(Icons.directions_bus, 'Number plate', appProvider.assignedVan?.numberPlate ?? 'UBA 234S'),
+            _buildTripDetail(
+              Icons.directions_bus,
+              'Number plate',
+              appProvider.assignedVan?.numberPlate ?? 'UBA 234S',
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -250,7 +260,12 @@ class _TripPageState extends State<TripPage> {
       children: [
         Icon(icon, color: const Color(0xFF9D7BB0)),
         const SizedBox(width: 12),
-        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
       ],
     );
   }
