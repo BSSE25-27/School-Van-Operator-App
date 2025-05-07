@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -19,16 +21,77 @@ class _RoutesPageState extends State<RoutesPage> {
   final Set<Polyline> _polylines = {};
   final List<Marker> _markers = [];
   List<dynamic> _children = [];
+  StreamSubscription<Position>? _locationSubscription;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _startLocationUpdates();
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startLocationUpdates() async {
+    await _getCurrentLocation();
+
+    const duration = Duration(seconds: 30);
+    _locationSubscription = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      _handleNewPosition(position);
+    });
+  }
+
+  void _handleNewPosition(Position position) {
+    setState(() {
+      _currentPosition = position;
+    });
+
+    _updateCurrentLocationMarker(position);
+    _sendLocationUpdate(position.latitude, position.longitude);
+  }
+
+  Future<void> _sendLocationUpdate(double latitude, double longitude) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final vanOperatorId = prefs.getInt('VanOperatorID');
+      final vanId = prefs.getInt('VanID');
+
+      if (vanOperatorId == null || vanId == null) {
+        print('VanOperatorID or VanID not found. Please log in again.');
+        return;
+      }
+
+      final apiUrl =
+          'https://lightyellow-owl-629132.hostingersite.com/api/location-update';
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'van_id': vanId,
+          'latitude': latitude,
+          'longitude': longitude,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        print('Failed to send location update: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error sending location update: $e');
+    }
   }
 
   Future<void> _getCurrentLocation() async {
     try {
-      // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
@@ -37,7 +100,6 @@ class _RoutesPageState extends State<RoutesPage> {
         return;
       }
 
-      // Request location permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -56,19 +118,11 @@ class _RoutesPageState extends State<RoutesPage> {
         return;
       }
 
-      // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      setState(() {
-        _currentPosition = position;
-      });
-
-      // Add marker for current location
-      _addCurrentLocationMarker();
-
-      // Fetch assigned children and generate routes
+      _handleNewPosition(position);
       await _fetchAssignedChildren();
     } catch (e) {
       setState(() {
@@ -78,17 +132,16 @@ class _RoutesPageState extends State<RoutesPage> {
     }
   }
 
-  void _addCurrentLocationMarker() {
-    if (_currentPosition == null) return;
+  void _updateCurrentLocationMarker(Position position) {
+    _markers.removeWhere(
+      (marker) => marker.markerId.value == 'current_location',
+    );
 
     setState(() {
       _markers.add(
         Marker(
           markerId: const MarkerId('current_location'),
-          position: LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          ),
+          position: LatLng(position.latitude, position.longitude),
           infoWindow: const InfoWindow(title: 'Van Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
@@ -98,7 +151,6 @@ class _RoutesPageState extends State<RoutesPage> {
 
   Future<void> _fetchAssignedChildren() async {
     try {
-      // Retrieve VanOperatorID from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final vanOperatorId = prefs.getInt('VanOperatorID');
 
@@ -107,7 +159,6 @@ class _RoutesPageState extends State<RoutesPage> {
         return;
       }
 
-      // Replace with your API endpoint
       final apiUrl =
           'https://lightyellow-owl-629132.hostingersite.com/api/operators/$vanOperatorId/children';
 
@@ -119,10 +170,7 @@ class _RoutesPageState extends State<RoutesPage> {
           _children = data['children'] as List;
         });
 
-        // Add markers for children locations
         _addChildrenMarkers();
-
-        // Generate routes
         await _generateRoutes();
       } else {
         print('Failed to fetch children: ${response.statusCode}');
@@ -163,7 +211,6 @@ class _RoutesPageState extends State<RoutesPage> {
   Future<void> _generateRoutes() async {
     if (_currentPosition == null || _children.isEmpty) return;
 
-    // Clear existing polylines
     setState(() {
       _polylines.clear();
     });
@@ -189,7 +236,6 @@ class _RoutesPageState extends State<RoutesPage> {
       }
     }
 
-    // Zoom to fit all markers and routes
     _zoomToFit();
   }
 
@@ -288,10 +334,31 @@ class _RoutesPageState extends State<RoutesPage> {
     );
   }
 
+  Future<void> _refreshRoutes() async {
+    setState(() {
+      _isLoading = true;
+      _polylines.clear();
+      _markers.clear();
+    });
+
+    await _getCurrentLocation();
+    await _fetchAssignedChildren();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('School Bus Routes'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('School Bus Routes'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshRoutes,
+            tooltip: 'Refresh Routes',
+          ),
+        ],
+      ),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -308,7 +375,6 @@ class _RoutesPageState extends State<RoutesPage> {
                 ),
                 onMapCreated: (controller) {
                   _mapController = controller;
-                  // Zoom to fit all markers after map is created
                   WidgetsBinding.instance.addPostFrameCallback(
                     (_) => _zoomToFit(),
                   );
@@ -319,21 +385,18 @@ class _RoutesPageState extends State<RoutesPage> {
                 myLocationButtonEnabled: true,
               ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _refreshRoutes,
-        tooltip: 'Refresh Routes',
-        child: const Icon(Icons.refresh),
+        onPressed: () {
+          if (_currentPosition != null) {
+            _mapController?.animateCamera(
+              CameraUpdate.newLatLng(
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+              ),
+            );
+          }
+        },
+        tooltip: 'Center on Van',
+        child: const Icon(Icons.my_location),
       ),
     );
-  }
-
-  Future<void> _refreshRoutes() async {
-    setState(() {
-      _isLoading = true;
-      _polylines.clear();
-      _markers.clear();
-    });
-
-    await _getCurrentLocation();
-    await _fetchAssignedChildren();
   }
 }
