@@ -7,6 +7,8 @@ import 'profile.dart';
 import 'notification.dart';
 import 'draw.dart';
 import 'maps.dart';
+import 'config.dart';
+import 'optimize.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -62,9 +64,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final response = await http.get(
-        Uri.parse(
-          'https://lightyellow-owl-629132.hostingersite.com/api/operators/$vanOperatorId/children',
-        ),
+        Uri.parse('$serverUrl/api/operators/$vanOperatorId/children'),
       );
 
       if (response.statusCode == 200) {
@@ -212,9 +212,7 @@ class _HomePageState extends State<HomePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          const VanOperatorHomeScreen(),
+                                  builder: (context) => const RoutesPage(),
                                 ),
                               );
                             },

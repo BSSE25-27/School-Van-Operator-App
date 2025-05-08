@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'config.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +27,7 @@ class _RoutesPageState extends State<RoutesPage> {
   @override
   void initState() {
     super.initState();
+    print('Initializing location updates...');
     _startLocationUpdates();
   }
 
@@ -37,7 +39,7 @@ class _RoutesPageState extends State<RoutesPage> {
 
   Future<void> _startLocationUpdates() async {
     await _getCurrentLocation();
-
+    print('Location updates started');
     const duration = Duration(seconds: 30);
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
@@ -45,6 +47,7 @@ class _RoutesPageState extends State<RoutesPage> {
         distanceFilter: 10,
       ),
     ).listen((Position position) {
+      print('${position.latitude}, ${position.longitude}');
       _handleNewPosition(position);
     });
   }
@@ -62,21 +65,21 @@ class _RoutesPageState extends State<RoutesPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final vanOperatorId = prefs.getInt('VanOperatorID');
-      final vanId = prefs.getInt('VanID');
 
-      if (vanOperatorId == null || vanId == null) {
-        print('VanOperatorID or VanID not found. Please log in again.');
+      if (vanOperatorId == null) {
+        print('VanOperatorID not found. Please log in again.');
         return;
       }
 
-      final apiUrl =
-          'https://lightyellow-owl-629132.hostingersite.com/api/location-update';
+      final apiUrl = '$serverUrl/api/location-update';
+      print('Sending location update to $apiUrl');
+      print('VanOperatorID: $vanOperatorId');
 
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'van_id': vanId,
+          'vanOperatorId': vanOperatorId,
           'latitude': latitude,
           'longitude': longitude,
         }),
@@ -159,8 +162,7 @@ class _RoutesPageState extends State<RoutesPage> {
         return;
       }
 
-      final apiUrl =
-          'https://lightyellow-owl-629132.hostingersite.com/api/operators/$vanOperatorId/children';
+      final apiUrl = '$serverUrl/api/operators/$vanOperatorId/children';
 
       final response = await http.get(Uri.parse(apiUrl));
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:operator_app/otp_screen.dart';
 import 'dart:convert';
+import 'config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic>? loggedInOperator;
@@ -29,10 +30,9 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      print('$serverUrl/api/operator-login');
       final response = await http.post(
-        Uri.parse(
-          'https://lightyellow-owl-629132.hostingersite.com/api/operator-login',
-        ),
+        Uri.parse('$serverUrl/api/operator-login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'VanOperatorName': _usernameController.text.trim(),
@@ -41,6 +41,8 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final responseData = jsonDecode(response.body);
+
+      print(responseData);
 
       if (response.statusCode == 200) {
         if (responseData['message'] == 'Login successful' &&
@@ -53,6 +55,7 @@ class _LoginPageState extends State<LoginPage> {
             'VanOperatorID',
             responseData['operator']['VanOperatorID'],
           );
+          print('VanOperatorID: ${responseData['operator']['VanOperatorID']}');
 
           // Navigate to OTP screen with operator's phone number
           Navigator.push(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:operator_app/home.dart';
 import 'dart:convert';
+import 'config.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -50,9 +51,7 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() => isLoading = true);
     try {
       final response = await http.post(
-        Uri.parse(
-          'https://lightyellow-owl-629132.hostingersite.com/api/send-otp',
-        ),
+        Uri.parse('$serverUrl/api/send-otp'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'phone_number': widget.phoneNumber}),
       );
@@ -103,9 +102,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          'https://lightyellow-owl-629132.hostingersite.com/api/verify-otp',
-        ),
+        Uri.parse('$serverUrl/api/verify-otp'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'phone_number': widget.phoneNumber, 'otp': otp}),
       );
@@ -140,9 +137,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          'https://lightyellow-owl-629132.hostingersite.com/api/resend-otp',
-        ),
+        Uri.parse('$serverUrl/api/resend-otp'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'phone_number': widget.phoneNumber}),
       );

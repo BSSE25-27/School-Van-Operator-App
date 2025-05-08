@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'config.dart';
 import 'package:operator_app/login.dart'; // Import for loggedInOperator
 
 class ParentQRScannerScreen extends StatefulWidget {
@@ -98,8 +99,7 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     required String childId,
     required String vanOperatorId,
   }) async {
-    const apiUrl =
-        'https://lightyellow-owl-629132.hostingersite.com/api/verify-pickup';
+    const apiUrl = '$serverUrl/api/verify-pickup';
 
     final response = await http.post(
       Uri.parse(apiUrl),
@@ -192,8 +192,7 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     required String childId,
     required String vanOperatorId,
   }) async {
-    const apiUrl =
-        'https://lightyellow-owl-629132.hostingersite.com/api/log-handover';
+    const apiUrl = '$serverUrl/api/log-handover';
 
     await http.post(
       Uri.parse(apiUrl),
