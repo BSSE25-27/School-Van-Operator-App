@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'attend.dart';
 import 'profile.dart';
@@ -20,13 +21,30 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? operatorData;
   bool isLoading = true;
+  bool isRefreshing = false;
   String errorMessage = '';
   int? vanOperatorId;
+  Timer? _refreshTimer;
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
     super.initState();
     _loadVanOperatorId();
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    const refreshDuration = Duration(seconds: 30);
+    _refreshTimer = Timer.periodic(refreshDuration, (timer) {
+      _fetchOperatorData();
+    });
   }
 
   Future<void> _loadVanOperatorId() async {
@@ -46,7 +64,6 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      // Fetch operator data after loading VanOperatorID
       await _fetchOperatorData();
     } catch (e) {
       setState(() {
@@ -57,8 +74,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchOperatorData() async {
+    if (isRefreshing) return;
+
     setState(() {
-      isLoading = true;
+      isRefreshing = true;
       errorMessage = '';
     });
 
@@ -71,206 +90,238 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           operatorData = json.decode(response.body);
           isLoading = false;
+          _lastUpdated = DateTime.now();
         });
       } else {
         setState(() {
-          isLoading = false;
           errorMessage = 'Failed to load data: ${response.statusCode}';
         });
       }
     } catch (e) {
       setState(() {
-        isLoading = false;
         errorMessage = 'Error fetching data: $e';
+      });
+    } finally {
+      setState(() {
+        isRefreshing = false;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = const Color(0xFF6A3B9C);
+    final backgroundColor = const Color(0xFF9D7BB0);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF9D7BB0),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF9D7BB0),
+        backgroundColor: backgroundColor,
         elevation: 0,
         leading: Builder(
           builder:
               (context) => IconButton(
                 icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
         ),
+        actions: [
+          IconButton(
+            icon:
+                isRefreshing
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                    : const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _fetchOperatorData,
+          ),
+        ],
       ),
       drawer: const VanOperatorDrawer(),
       body: SafeArea(
-        child: SingleChildScrollView(
-          // Wrap the content in SingleChildScrollView
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child:
-                isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : errorMessage.isNotEmpty
-                    ? Center(
-                      child: Text(
-                        errorMessage,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    )
-                    : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        const Center(
-                          child: Text(
-                            'Welcome!',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-
-                        // Welcome Card
-                        Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child:
+                    isLoading
+                        ? const Center(
+                          child: CircularProgressIndicator(),
+                          heightFactor: 5,
+                        )
+                        : errorMessage.isNotEmpty
+                        ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 10),
-                                Image.asset(
-                                  "assets/icons/van.png",
-                                  height: 100,
-                                ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  "Welcome, ${operatorData!['VanOperatorName']}",
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.2,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Vehicle: ${operatorData!['VanNumberPlate']}",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[700],
-                                    height: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Total Children: ${operatorData!['totalChildren']}",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.purple[800],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(
+                              errorMessage,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
+                        )
+                        : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 20),
+                            const Center(
+                              child: Text(
+                                'Welcome!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 30),
 
-                        // Assigned Children Info
-                        _buildInfoCard(
-                          'ASSIGNED CHILDREN : ${operatorData!['totalChildren']}',
-                          Icons.people,
-                        ),
-                        const SizedBox(height: 16),
+                            // Welcome Card
+                            Card(
+                              elevation: 6,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 10),
+                                    Image.asset(
+                                      "assets/icons/van.png",
+                                      height: 100,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      "Welcome, ${operatorData!['VanOperatorName']}",
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Vehicle: ${operatorData!['VanNumberPlate']}",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Total Children: ${operatorData!['totalChildren']}",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
 
-                        _buildInfoCard(
-                          'VAN NUMBER-PLATE : ${operatorData!['VanNumberPlate']}',
-                          Icons.directions_bus,
-                        ),
-                        const SizedBox(height: 16),
+                            // Assigned Children Info
+                            _buildInfoCard(
+                              'ASSIGNED CHILDREN: ${operatorData!['totalChildren']}',
+                              Icons.people,
+                            ),
+                            const SizedBox(height: 16),
 
-                        _buildInfoCard(
-                          'Routes: ${operatorData!['assignedRoute'] ?? 'N/A'}',
-                          Icons.map,
-                        ),
-                        const SizedBox(height: 40),
+                            _buildInfoCard(
+                              'VAN NUMBER-PLATE: ${operatorData!['VanNumberPlate']}',
+                              Icons.directions_bus,
+                            ),
+                            const SizedBox(height: 16),
 
-                        // Start Trip Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
+                            _buildInfoCard(
+                              'ROUTES: ${operatorData!['assignedRoute'] ?? 'N/A'}',
+                              Icons.map,
+                            ),
+                            const SizedBox(height: 40),
+
+                            // Start Trip Button
+                            _buildActionButton(
+                              'Start Trip',
+                              () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => const RoutesPage(),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6A3B9C),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              'Start Trip',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                        // Attendance Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
+                            // Attendance Button
+                            _buildActionButton(
+                              'Attendance',
+                              () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder:
                                       (context) => const AttendanceScreen(),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6A3B9C),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              'Attendance',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                            const SizedBox(height: 20),
+                          ],
                         ),
-                      ],
-                    ),
-          ),
+              ),
+            ),
+            if (_lastUpdated != null)
+              Positioned(
+                bottom: 70,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: primaryColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Updated: ${_lastUpdated!.toLocal().toString().substring(11, 16)}',
+                        style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
+        selectedItemColor: primaryColor,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
@@ -305,6 +356,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -321,6 +373,26 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String text, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF6A3B9C),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 3,
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

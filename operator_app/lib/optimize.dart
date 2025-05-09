@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -17,46 +16,53 @@ class RoutesPage extends StatefulWidget {
 
 class _RoutesPageState extends State<RoutesPage> {
   bool _isLoading = true;
+  bool _isRefreshing = false;
   Position? _currentPosition;
   GoogleMapController? _mapController;
   final Set<Polyline> _polylines = {};
   final List<Marker> _markers = [];
   List<dynamic> _children = [];
   StreamSubscription<Position>? _locationSubscription;
+  Timer? _refreshTimer;
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
     super.initState();
-    print('Initializing location updates...');
+    _startAutoRefresh();
     _startLocationUpdates();
   }
 
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    const refreshDuration = Duration(seconds: 30);
+    _refreshTimer = Timer.periodic(refreshDuration, (timer) {
+      _refreshRoutes();
+    });
+    // Initial refresh
+    _refreshRoutes();
   }
 
   Future<void> _startLocationUpdates() async {
     await _getCurrentLocation();
-    print('Location updates started');
-    const duration = Duration(seconds: 30);
     _locationSubscription = Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
+      locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 10,
       ),
-    ).listen((Position position) {
-      print('${position.latitude}, ${position.longitude}');
-      _handleNewPosition(position);
-    });
+    ).listen(_handleNewPosition);
   }
 
   void _handleNewPosition(Position position) {
     setState(() {
       _currentPosition = position;
     });
-
     _updateCurrentLocationMarker(position);
     _sendLocationUpdate(position.latitude, position.longitude);
   }
@@ -66,17 +72,10 @@ class _RoutesPageState extends State<RoutesPage> {
       final prefs = await SharedPreferences.getInstance();
       final vanOperatorId = prefs.getInt('VanOperatorID');
 
-      if (vanOperatorId == null) {
-        print('VanOperatorID not found. Please log in again.');
-        return;
-      }
+      if (vanOperatorId == null) return;
 
-      final apiUrl = '$serverUrl/api/location-update';
-      print('Sending location update to $apiUrl');
-      print('VanOperatorID: $vanOperatorId');
-
-      final response = await http.post(
-        Uri.parse(apiUrl),
+      await http.post(
+        Uri.parse('$serverUrl/api/location-update'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'vanOperatorId': vanOperatorId,
@@ -84,10 +83,6 @@ class _RoutesPageState extends State<RoutesPage> {
           'longitude': longitude,
         }),
       );
-
-      if (response.statusCode != 200) {
-        print('Failed to send location update: ${response.statusCode}');
-      }
     } catch (e) {
       print('Error sending location update: $e');
     }
@@ -96,30 +91,15 @@ class _RoutesPageState extends State<RoutesPage> {
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
+      if (!serviceEnabled) return;
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
+        if (permission == LocationPermission.denied) return;
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
+      if (permission == LocationPermission.deniedForever) return;
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -128,9 +108,6 @@ class _RoutesPageState extends State<RoutesPage> {
       _handleNewPosition(position);
       await _fetchAssignedChildren();
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       print('Error getting location: $e');
     }
   }
@@ -147,6 +124,8 @@ class _RoutesPageState extends State<RoutesPage> {
           position: LatLng(position.latitude, position.longitude),
           infoWindow: const InfoWindow(title: 'Van Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          anchor: const Offset(0.5, 0.5),
+          rotation: position.heading,
         ),
       );
     });
@@ -156,32 +135,27 @@ class _RoutesPageState extends State<RoutesPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final vanOperatorId = prefs.getInt('VanOperatorID');
+      if (vanOperatorId == null) return;
 
-      if (vanOperatorId == null) {
-        print('VanOperatorID not found. Please log in again.');
-        return;
-      }
-
-      final apiUrl = '$serverUrl/api/operators/$vanOperatorId/children';
-
-      final response = await http.get(Uri.parse(apiUrl));
+      final response = await http.get(
+        Uri.parse('$serverUrl/api/operators/$vanOperatorId/children'),
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
           _children = data['children'] as List;
         });
-
         _addChildrenMarkers();
         await _generateRoutes();
-      } else {
-        print('Failed to fetch children: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching children: $e');
     } finally {
       setState(() {
         _isLoading = false;
+        _isRefreshing = false;
+        _lastUpdated = DateTime.now();
       });
     }
   }
@@ -255,17 +229,14 @@ class _RoutesPageState extends State<RoutesPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
         if (data['routes'] != null && data['routes'].isNotEmpty) {
           final points = data['routes'][0]['overview_polyline']['points'];
-
           return Polyline(
             polylineId: PolylineId('route_to_$childName'),
             points: _decodePolyline(points),
-            color: Colors.blue,
-            width: 5,
+            color: Theme.of(context).primaryColor,
+            width: 4,
             geodesic: true,
-            zIndex: 1,
           );
         }
       }
@@ -313,8 +284,7 @@ class _RoutesPageState extends State<RoutesPage> {
       _markers.map((m) => m.position).toList(),
     );
 
-    CameraUpdate cameraUpdate = CameraUpdate.newLatLngBounds(bounds, 100);
-    _mapController?.animateCamera(cameraUpdate);
+    _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
   }
 
   LatLngBounds _boundsFromLatLngList(List<LatLng> list) {
@@ -337,12 +307,8 @@ class _RoutesPageState extends State<RoutesPage> {
   }
 
   Future<void> _refreshRoutes() async {
-    setState(() {
-      _isLoading = true;
-      _polylines.clear();
-      _markers.clear();
-    });
-
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
     await _getCurrentLocation();
     await _fetchAssignedChildren();
   }
@@ -354,14 +320,30 @@ class _RoutesPageState extends State<RoutesPage> {
         title: const Text('School Bus Routes'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshRoutes,
-            tooltip: 'Refresh Routes',
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon:
+                    _isRefreshing
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Icon(Icons.refresh),
+                onPressed: _refreshRoutes,
+                tooltip: 'Refresh Routes',
+              ),
+            ],
           ),
         ],
       ),
-      body:
+      body: Stack(
+        children: [
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : GoogleMap(
@@ -384,20 +366,76 @@ class _RoutesPageState extends State<RoutesPage> {
                 polylines: _polylines,
                 markers: Set<Marker>.of(_markers),
                 myLocationEnabled: true,
-                myLocationButtonEnabled: true,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
               ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_currentPosition != null) {
-            _mapController?.animateCamera(
-              CameraUpdate.newLatLng(
-                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          Positioned(
+            bottom: 80,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            );
-          }
-        },
-        tooltip: 'Center on Van',
-        child: const Icon(Icons.my_location),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _lastUpdated != null
+                        ? 'Updated: ${_lastUpdated!.toLocal().toString().substring(11, 16)}'
+                        : 'Updating...',
+                    style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'center_location',
+            onPressed: () {
+              if (_currentPosition != null) {
+                _mapController?.animateCamera(
+                  CameraUpdate.newLatLng(
+                    LatLng(
+                      _currentPosition!.latitude,
+                      _currentPosition!.longitude,
+                    ),
+                  ),
+                );
+              }
+            },
+            mini: true,
+            tooltip: 'Center on Van',
+            child: const Icon(Icons.my_location),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: 'zoom_fit',
+            onPressed: _zoomToFit,
+            mini: true,
+            tooltip: 'Zoom to Fit All',
+            child: const Icon(Icons.zoom_out_map),
+          ),
+        ],
       ),
     );
   }
