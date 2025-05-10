@@ -108,6 +108,12 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Contact
 For any questions or feedback, please reach out to:<br>
     Mumbere Asingya Joshua<br>
+    Ahwera Shifrah<br>
+    Nagaba Blessing<br>
+    Ainomugisha Priscilla<br>
     Email: joshuamumbere71@gmail.com<br>
+    Email: shiphraa94@gmail.com<br>
+    Email: nagabablessing1@gmail.com<br>
+    Email: ainomugishapriscilla00@gmail.com<br>
     GitHub: joshuamumbere<br>
 **Thank you for using the School Van Operator App! We hope it enhances the safety and efficiency of school transportation for drivers, parents, and administrators alike. 🚐✨**
