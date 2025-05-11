@@ -3,10 +3,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'config.dart';
-import 'package:operator_app/login.dart'; // Import for loggedInOperator
+import 'package:operator_app/login.dart';
 
 class ParentQRScannerScreen extends StatefulWidget {
-  final String childId; // The child being picked up
+  final String childId;
 
   const ParentQRScannerScreen({super.key, required this.childId});
 
@@ -20,6 +20,7 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
   bool isProcessing = false;
   String? verificationStatus;
   Map<String, dynamic>? verificationResult;
+  bool _shouldScan = true;
 
   @override
   void dispose() {
@@ -27,42 +28,40 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     super.dispose();
   }
 
-  void _handleBarcode(BarcodeCapture barcodeCapture) async {
-    if (isProcessing) return;
+  Future<void> _handleBarcode(BarcodeCapture barcodeCapture) async {
+    if (!_shouldScan || isProcessing) return;
 
     final barcode = barcodeCapture.barcodes.first;
     if (barcode.rawValue == null) {
-      _showError('No QR code detected');
+      _showError('Invalid QR code - no data found');
       return;
     }
 
     setState(() {
       isProcessing = true;
       verificationStatus = 'Verifying parent...';
+      _shouldScan = false;
     });
 
     try {
-      // Parse the JSON data from QR code
       final qrData = jsonDecode(barcode.rawValue!);
-      final parentId = qrData['parent_id']?.toString();
-      final childId = qrData['child_id']?.toString();
+      _validateQrData(qrData);
 
-      if (parentId == null || childId == null) {
-        throw const FormatException(
-          'Invalid QR format - missing parent_id or child_id',
-        );
+      final parentId = qrData['parent_id'].toString();
+      final qrChildId = qrData['child_id'].toString();
+
+      if (qrChildId != widget.childId) {
+        throw Exception('This QR code is not for the selected child');
       }
 
-      // Get the VanOperatorID from the logged-in operator
       final vanOperatorId = loggedInOperator?['VanOperatorID']?.toString();
       if (vanOperatorId == null) {
-        throw Exception('VanOperatorID is not available. Please log in again.');
+        throw Exception('Operator not authenticated. Please log in again.');
       }
 
-      // Call verification API
       final result = await _verifyPickup(
         parentId: parentId,
-        childId: childId,
+        childId: widget.childId,
         vanOperatorId: vanOperatorId,
       );
 
@@ -70,27 +69,38 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
 
       if (result['success'] == true) {
         setState(() {
-          verificationStatus = 'Verification successful';
           verificationResult = {
+            'parent_id': parentId,
             'parent_name': qrData['parent_name'],
             'child_name': result['child_name'],
           };
+          verificationStatus = 'Verification successful';
         });
 
-        // Show success dialog
-        _showVerificationDialog(
-          context,
-          true,
-          qrData['parent_name'],
-          result['child_name'],
+        await _showVerificationDialog(
+          parentName: qrData['parent_name'],
+          childName: result['child_name'],
         );
       } else {
-        _showError(result['message'] ?? 'Verification failed');
-        _resetScanner();
+        throw Exception(result['message'] ?? 'Verification failed');
       }
+    } on FormatException catch (e) {
+      _showError('Invalid QR format: ${e.message}');
     } catch (e) {
-      _showError('Error: ${e.toString()}');
-      _resetScanner();
+      _showError(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
+    }
+  }
+
+  void _validateQrData(Map<String, dynamic> qrData) {
+    if (qrData['parent_id'] == null || qrData['child_id'] == null) {
+      throw const FormatException('Missing parent_id or child_id');
+    }
+    if (qrData['parent_name'] == null) {
+      throw const FormatException('Missing parent_name');
     }
   }
 
@@ -99,15 +109,13 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     required String childId,
     required String vanOperatorId,
   }) async {
-    const apiUrl = '$serverUrl/api/verify-pickup';
-
     final response = await http.post(
-      Uri.parse(apiUrl),
+      Uri.parse('$serverUrl/api/verify-pickup'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'parent_id': parentId, // Match Laravel's validation key
-        'child_id': childId, // Match Laravel's validation key
-        'van_operator_id': vanOperatorId, // Match Laravel's validation key
+        'ParentID': parentId,
+        'ChildID': childId,
+        'VanOperatorID': vanOperatorId,
         'verification_time': DateTime.now().toIso8601String(),
       }),
     );
@@ -115,76 +123,74 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('API request failed with status ${response.statusCode}');
+      throw Exception('Server responded with status ${response.statusCode}');
     }
   }
 
-  void _showVerificationDialog(
-    BuildContext context,
-    bool isSuccess,
-    String parentName,
-    String childName,
-  ) {
-    showDialog(
+  Future<void> _showVerificationDialog({
+    required String parentName,
+    required String childName,
+  }) async {
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder:
           (context) => AlertDialog(
-            title: Text(
-              isSuccess ? 'Verification Successful' : 'Verification Failed',
-            ),
+            title: const Text('Verification Successful'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isSuccess) ...{
-                  Text(
-                    'Parent: $parentName',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Child: $childName'),
-                  const SizedBox(height: 16),
-                  const Text('You may now release the child to the parent.'),
-                } else
-                  const Text(
-                    'The QR code is invalid or the parent is not authorized to pick up this child.',
-                  ),
+                Text(
+                  'Parent: $parentName',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text('Child: $childName'),
                 const SizedBox(height: 16),
+                const Text('Please confirm the handover:'),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _resetScanner();
-                },
-                child: const Text('OK'),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
               ),
-              if (isSuccess)
-                ElevatedButton(
-                  onPressed: () {
-                    // Log the successful handover
-                    _logHandover(
-                      parentId: verificationResult!['parent_id'],
-                      childId: widget.childId,
-                      vanOperatorId:
-                          loggedInOperator!['VanOperatorID'].toString(),
-                    );
-                    Navigator.pop(context);
-                    Navigator.pop(context, verificationResult);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
-                  child: const Text(
-                    'Confirm Handover',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Confirm Handover'),
+              ),
             ],
           ),
     );
+
+    // if (result == true) {
+    //   await _completeHandover();
+    // } else {
+    //   _resetScanner();
+    // }
+  }
+
+  Future<void> _completeHandover() async {
+    if (verificationResult == null) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      await _logHandover(
+        parentId: verificationResult!['parent_id'],
+        childId: widget.childId,
+        vanOperatorId: loggedInOperator!['VanOperatorID'].toString(),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, verificationResult);
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to log handover: ${e.toString()}');
+      _resetScanner();
+    }
   }
 
   Future<void> _logHandover({
@@ -192,10 +198,8 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
     required String childId,
     required String vanOperatorId,
   }) async {
-    const apiUrl = '$serverUrl/api/log-handover';
-
-    await http.post(
-      Uri.parse(apiUrl),
+    final response = await http.post(
+      Uri.parse('$serverUrl/api/log-handover'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'parent_id': parentId,
@@ -204,6 +208,10 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
         'handover_time': DateTime.now().toIso8601String(),
       }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to log handover');
+    }
   }
 
   void _showError(String message) {
@@ -216,9 +224,9 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
   void _resetScanner() {
     if (!mounted) return;
     setState(() {
-      isProcessing = false;
       verificationStatus = null;
       verificationResult = null;
+      _shouldScan = true;
     });
     cameraController.start();
   }
@@ -227,7 +235,7 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Verify Parent Authorization'),
+        title: const Text('Parent Verification'),
         actions: [
           IconButton(
             icon: Icon(isFlashOn ? Icons.flash_on : Icons.flash_off),
@@ -266,13 +274,8 @@ class _ParentQRScannerScreenState extends State<ParentQRScannerScreen> {
               ),
             ),
 
-          // Processing indicator
           if (isProcessing && verificationStatus == null)
-            const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Colors.white),
-              ),
-            ),
+            const Center(child: CircularProgressIndicator()),
         ],
       ),
     );
@@ -320,14 +323,7 @@ class _ScannerOverlayPainter extends CustomPainter {
     );
 
     // Draw corners
-    _drawCorner(
-      canvas,
-      cornerPaint,
-      0,
-      0,
-      cornerLength,
-      cornerLength,
-    ); // Top-left
+    _drawCorner(canvas, cornerPaint, 0, 0, cornerLength, cornerLength);
     _drawCorner(
       canvas,
       cornerPaint,
@@ -335,7 +331,7 @@ class _ScannerOverlayPainter extends CustomPainter {
       0,
       -cornerLength,
       cornerLength,
-    ); // Top-right
+    );
     _drawCorner(
       canvas,
       cornerPaint,
@@ -343,7 +339,7 @@ class _ScannerOverlayPainter extends CustomPainter {
       size.height,
       cornerLength,
       -cornerLength,
-    ); // Bottom-left
+    );
     _drawCorner(
       canvas,
       cornerPaint,
@@ -351,7 +347,7 @@ class _ScannerOverlayPainter extends CustomPainter {
       size.height,
       -cornerLength,
       -cornerLength,
-    ); // Bottom-right
+    );
   }
 
   void _drawCorner(
