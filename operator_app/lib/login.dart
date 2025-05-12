@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:operator_app/home.dart';
 import 'package:operator_app/otp_screen.dart';
 import 'dart:convert';
 import 'config.dart';
@@ -58,14 +59,18 @@ class _LoginPageState extends State<LoginPage> {
           print('VanOperatorID: ${responseData['operator']['VanOperatorID']}');
 
           // Navigate to OTP screen with operator's phone number
+          // Navigator.push(
+          //   context,
+          //   MaterialPageRoute(
+          //     builder:
+          //         (context) => OtpScreen(
+          //           phoneNumber: responseData['operator']['PhoneNumber'],
+          //         ),
+          //   ),
+          // );
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder:
-                  (context) => OtpScreen(
-                    phoneNumber: responseData['operator']['PhoneNumber'],
-                  ),
-            ),
+            MaterialPageRoute(builder: (context) => HomePage()),
           );
         } else {
           setState(() {

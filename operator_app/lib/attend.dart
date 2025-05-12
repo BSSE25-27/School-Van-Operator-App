@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:operator_app/draw.dart';
-import 'package:operator_app/qr_code.dart';
+import 'package:operator_app/qr.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -68,9 +68,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (context) =>
-                                      const ParentQRScannerScreen(childId: '1'),
+                              builder: (context) => const ParentQR(),
                             ),
                           );
                         },

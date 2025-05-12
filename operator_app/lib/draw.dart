@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:operator_app/maps.dart';
 import 'package:operator_app/profile.dart';
-import 'package:operator_app/qr_code.dart';
+import 'package:operator_app/qr.dart';
 import 'package:operator_app/optimize.dart';
 import 'package:operator_app/attend.dart';
 import 'package:operator_app/terms.dart';
@@ -118,11 +118,7 @@ class VanOperatorDrawer extends StatelessWidget {
                       context: context,
                       icon: Icons.qr_code_scanner_rounded,
                       title: "QR Scanner",
-                      onTap:
-                          () => _navigateTo(
-                            context,
-                            const ParentQRScannerScreen(childId: '1'),
-                          ),
+                      onTap: () => _navigateTo(context, const ParentQR()),
                     ),
                     _buildDrawerItem(
                       context: context,

@@ -160,11 +160,14 @@ class _RoutesPageState extends State<RoutesPage> {
     }
   }
 
-  void _addChildrenMarkers() {
+  void _addChildrenMarkers() async {
+    List<String> childIds = [];
     for (var child in _children) {
       try {
         final lat = double.parse(child['Latitude']);
         final lng = double.parse(child['Longitude']);
+        final childId = child['ChildID'].toString();
+        childIds.add(childId);
 
         setState(() {
           _markers.add(
@@ -181,6 +184,13 @@ class _RoutesPageState extends State<RoutesPage> {
       } catch (e) {
         print('Error parsing child location: $e');
       }
+    }
+    // Store all child IDs in SharedPreferences as a String list
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('child_ids', childIds);
+    } catch (e) {
+      print('Error saving child IDs to SharedPreferences: $e');
     }
   }
 
@@ -221,7 +231,6 @@ class _RoutesPageState extends State<RoutesPage> {
     String childName,
   ) async {
     try {
-      const apiKey = 'AIzaSyBWjxOJ5thrN07ci1XkZ0fZHi4mg-PIpeg';
       final url =
           'https://maps.googleapis.com/maps/api/directions/json?origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&key=$apiKey';
 
