@@ -118,7 +118,20 @@ class VanOperatorDrawer extends StatelessWidget {
                       context: context,
                       icon: Icons.qr_code_scanner_rounded,
                       title: "QR Scanner",
-                      onTap: () => _navigateTo(context, const ParentQR()),
+                      onTap:
+                          () => _navigateTo(
+                            context,
+                            ParentQR(
+                              onScanComplete: (result) {
+                                // Handle scan result here, e.g., show a dialog or process the result
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Scan complete: $result'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                     ),
                     _buildDrawerItem(
                       context: context,

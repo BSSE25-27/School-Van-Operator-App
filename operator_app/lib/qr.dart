@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ParentQR extends StatefulWidget {
-  const ParentQR({super.key});
+  const ParentQR({super.key, required this.onScanComplete});
+
+  final Function(String childId) onScanComplete;
 
   @override
   State<ParentQR> createState() => _ParentQRState();
@@ -30,16 +32,12 @@ class _ParentQRState extends State<ParentQR> {
         scanFormat: ScanFormat.ONLY_QR_CODE,
       );
 
-      print('Scan result type: ${res.runtimeType}');
-      print('Scan result value: $res');
-
       if (res == null) {
         throw Exception('Scan cancelled or failed');
       }
 
       String scannedChildId;
 
-      // The result from SimpleBarcodeScanner is always a String
       if (res.trim().startsWith('{') && res.trim().endsWith('}')) {
         final qrData = json.decode(res) as Map<String, dynamic>;
         scannedChildId = qrData['child_id'].toString();
@@ -47,7 +45,6 @@ class _ParentQRState extends State<ParentQR> {
         scannedChildId = res;
       }
 
-      // Fetch child_ids from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final childIds = prefs.getStringList('child_ids') ?? [];
       final isChildIdValid = childIds.contains(scannedChildId);
@@ -57,14 +54,18 @@ class _ParentQRState extends State<ParentQR> {
         isVerified = isChildIdValid;
       });
 
+      if (isChildIdValid) {
+        widget.onScanComplete(scannedChildId);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isVerified!
+            isChildIdValid
                 ? 'Verification successful!'
                 : 'Verification failed. Child ID $scannedChildId not found in assigned list.',
           ),
-          backgroundColor: isVerified! ? Colors.green : Colors.red,
+          backgroundColor: isChildIdValid ? Colors.green : Colors.red,
         ),
       );
     } catch (e) {
@@ -84,7 +85,7 @@ class _ParentQRState extends State<ParentQR> {
           children: [
             ElevatedButton(
               onPressed: _scanQR,
-              child: const Text('Scan Barcode'),
+              child: const Text('SCAN QRCode'),
             ),
             const SizedBox(height: 20),
             Text(

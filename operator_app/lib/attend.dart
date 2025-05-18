@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:operator_app/draw.dart';
 import 'package:operator_app/qr.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -10,11 +12,46 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  final List<Map<String, dynamic>> children = [
-    {"id": "CH001", "eta": "8:15 AM", "isPresent": true},
-    {"id": "CH002", "eta": "8:18 AM", "isPresent": false},
-    {"id": "CH003", "eta": "8:20 AM", "isPresent": true},
-  ];
+  List<Map<String, dynamic>> children = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final childIds = prefs.getStringList('child_ids') ?? [];
+
+    setState(() {
+      children =
+          childIds
+              .map(
+                (id) => {
+                  "id": id,
+                  "eta": "Not scanned", // Default value
+                  "isPresent": false,
+                },
+              )
+              .toList();
+    });
+  }
+
+  void _handleScanComplete(String childId) {
+    setState(() {
+      final now = DateTime.now();
+      final formattedTime = DateFormat('h:mm a').format(now);
+
+      for (var child in children) {
+        if (child["id"] == childId) {
+          child["eta"] = formattedTime;
+          child["isPresent"] = true;
+          break;
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +105,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ParentQR(),
+                              builder:
+                                  (context) => ParentQR(
+                                    onScanComplete: _handleScanComplete,
+                                  ),
                             ),
                           );
                         },
@@ -84,94 +124,100 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 10), // Removed const here
-                    Table(
-                      border: TableBorder.all(color: Colors.grey),
-                      columnWidths: const {
-                        0: FlexColumnWidth(),
-                        1: FlexColumnWidth(),
-                        2: FlexColumnWidth(),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: const BoxDecoration(color: Colors.grey),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Table(
+                          border: TableBorder.all(color: Colors.grey),
+                          columnWidths: const {
+                            0: FlexColumnWidth(),
+                            1: FlexColumnWidth(),
+                            2: FlexColumnWidth(),
+                          },
                           children: [
-                            const TableCell(
-                              child: Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Text(
-                                    "Child ID",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                            TableRow(
+                              decoration: const BoxDecoration(
+                                color: Colors.grey,
+                              ),
+                              children: [
+                                const TableCell(
+                                  child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(
+                                        "Child ID",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            const TableCell(
-                              child: Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Text(
-                                    "ETA",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                const TableCell(
+                                  child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(
+                                        "ETA",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            const TableCell(
-                              child: Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Text(
-                                    "Scanned",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                const TableCell(
+                                  child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(
+                                        "Scanned",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
+                            ...children.map((child) {
+                              return TableRow(
+                                children: [
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Center(child: Text(child["id"])),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Center(child: Text(child["eta"])),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Center(
+                                        child: Icon(
+                                          child["isPresent"]
+                                              ? Icons.check_circle
+                                              : Icons.cancel,
+                                          color:
+                                              child["isPresent"]
+                                                  ? Colors.green
+                                                  : Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
                           ],
                         ),
-                        ...children.map((child) {
-                          return TableRow(
-                            children: [
-                              TableCell(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Center(child: Text(child["id"])),
-                                ),
-                              ),
-                              TableCell(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Center(child: Text(child["eta"])),
-                                ),
-                              ),
-                              TableCell(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Center(
-                                    child: Icon(
-                                      child["isPresent"]
-                                          ? Icons.check_circle
-                                          : Icons.cancel,
-                                      color:
-                                          child["isPresent"]
-                                              ? Colors.green
-                                              : Colors.red,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
+                      ),
                     ),
                   ],
                 ),
